@@ -10,6 +10,7 @@ namespace AppSNove
     {
         static void Main(string[] args)
         {
+            new Server.Server();
         }
     }
 }
