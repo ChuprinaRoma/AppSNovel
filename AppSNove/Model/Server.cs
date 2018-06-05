@@ -32,12 +32,12 @@ namespace AppSNove.Server
                }
            }).Start();
         }
-
+                                             
         private async Task WorksServer()
         {
             string[] parserUri = null;
             List<string> listLogIn = new List<string>();
-            listLogIn = GetAllUser(Directory.GetFiles("./User"));
+            listLogIn = GetAllUserParser(Directory.GetFiles("./User"));
             wsClient = await ws.AcceptWebSocketAsync(CancellationToken.None);
             parserUri = wsClient.HttpRequest.RequestUri.ToString().Split('/', '?');
             if (parserUri[2] == "Registartion")
@@ -51,7 +51,7 @@ namespace AppSNove.Server
                     File.WriteAllLines($"./User/{parserUri[3]}.txt", user);
                 }
                 else
-                {
+                {                                                                                                    
                     SendMesage("Registartion/false").GetAwaiter().GetResult();
                     wsClient.Close();
                 }
@@ -60,11 +60,17 @@ namespace AppSNove.Server
             {
                 if(listLogIn.Contains(parserUri[3]))
                 {
-                    SendMesage("Avtorization/true").GetAwaiter().GetResult();
-                    string[] user = File.ReadAllLines($"./User/{parserUri[3]}.txt");
-                    if(user[0] == parserUri[3] && user[1] == parserUri[4])
+                    string[] arrUser = File.ReadAllLines($"./User/{parserUri[3]}.txt");
+                    if(arrUser[0] == parserUri[3] && arrUser[1] == parserUri[4])
                     {
                         listUser.Add(new Users(parserUri[3], parserUri[4], wsClient));
+                        SendMesage("Avtorization/true").GetAwaiter().GetResult();
+                        SendMesageAllClient(parserUri[3]);
+                    }
+                    else
+                    {
+                        SendMesage("Avtorization/false").GetAwaiter().GetResult();
+                        wsClient.Close();
                     }
                 }
                 else
@@ -77,8 +83,22 @@ namespace AppSNove.Server
             {
                 wsClient.Close();
             }
+            wsClient = null;
         }
 
+        private void SendMesageAllClient(string logIn)
+        {
+            for (int user = 0; user < listUser.Count; user++)
+            {
+                listUser[user].isStateUser = "не играет";
+               
+                if (listUser[user].LogIn != logIn)
+                {
+                    SendMesage($"UpdateUser/{listUser[user].LogIn}/{listUser[user].isStateUser}").GetAwaiter().GetResult();
+                    listUser[user].SendMesage($"UpdateUser/{logIn}/не играет").GetAwaiter().GetResult();
+                }
+            }
+        }
 
         private async Task SendMesage(string mesgae)
         {
@@ -89,20 +109,24 @@ namespace AppSNove.Server
             }
         }
 
-        public static void Disckonect(string login)
+        public static void Disckonect(string logIn)
         {
-            listUser.Remove(listUser.Find(l => l.LogIn == login));
+            listUser.Remove(listUser.Find(l => l.LogIn == logIn));
+            for (int user = 0; user < listUser.Count; user++)
+            {
+                listUser[user].SendMesage($"RemoveUser/{logIn}").GetAwaiter().GetResult();
+            }
         }
 
-        private List<string> GetAllUser(string[] fullArrUser)
+        private List<string> GetAllUserParser(string[] fullArrUser)
         {
-            List<string> listUser = new List<string>();
-            listUser.AddRange(fullArrUser);
-            for(int i = 0; i < listUser.Count; i++)
+            List<string> listUser1 = new List<string>();
+            listUser1.AddRange(fullArrUser);
+            for(int i = 0; i < listUser1.Count; i++)
             {
-                listUser[i] = listUser[i].Remove(0, listUser[i].LastIndexOf("\\") + 1).Replace(".txt", "");
+                listUser1[i] = listUser1[i].Remove(0, listUser1[i].LastIndexOf("\\") + 1).Replace(".txt", "");
             }
-            return listUser;
+            return listUser1;
         }
     }
 }

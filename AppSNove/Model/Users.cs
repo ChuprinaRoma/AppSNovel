@@ -11,11 +11,12 @@ namespace AppSNove
         public string LogIn { get; set; }
         public string Password { get; set; }
         public WebSocket wsClient { get; set; }
-        private bool isState { get; set; }
+        private bool isStateConnect { get; set; }
+        public string isStateUser { get; set; }
 
         public Users(string LogIn, string Password, WebSocket wsClient)
         {
-            isState = true;
+            isStateConnect = true;
             this.LogIn = LogIn;
             this.Password = Password;
             this.wsClient = wsClient;
@@ -26,27 +27,36 @@ namespace AppSNove
         {
             new Thread(() =>
             {
-                while (isState)
+                while (wsClient.IsConnected)
                 {
                     RecipientMesage().GetAwaiter().GetResult();
                 }
             }).Start();
         }
+
         private async Task RecipientMesage()
         {
             var messageReadStream = await wsClient.ReadMessageAsync(CancellationToken.None);
-            if (messageReadStream != null)
+            if (wsClient.IsConnected)
             {
                 var msgContent = string.Empty;
                 using (var sr = new StreamReader(messageReadStream, Encoding.UTF8))
                 {
                     msgContent = await sr.ReadToEndAsync();
                 }
-            }
+            }  
             else
             {
                 Server.Server.Disckonect(this.LogIn);
-                isState = false;
+            }
+        }
+
+        public async Task SendMesage(string mesgae)
+        {
+            using (var messageWriterStream = wsClient.CreateMessageWriter(WebSocketMessageType.Text))
+            using (var sw = new StreamWriter(messageWriterStream, Encoding.UTF8))
+            {
+                await sw.WriteAsync(mesgae);
             }
         }
     }
