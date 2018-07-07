@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Net;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using vtortola.WebSockets;
 
 namespace AppSNove.Game
 {
@@ -18,6 +15,13 @@ namespace AppSNove.Game
         public string PlayerO { get; set; }
         public override HttpListener GetListener { get; set; }
         public override bool isGame { get; set; }
+        public override string TypeRoom { get; set; }
+        public override string Key { get; set; }
+        public override string TypeGame { get; set; }
+
+        private string[,] field = null;
+        private HttpListener gamelistene = null;
+        private Thread thread = null;
 
         public override  bool CheckCountlistPlayers()
         {
@@ -31,9 +35,27 @@ namespace AppSNove.Game
 
         public override async Task StartGame()
         {
+            gamelistene = new HttpListener();
+            gamelistene.Prefixes.Add($"http://127.0.0.1:8081/{NameGame}/{id}");
             PlayerX = listPlayers[0].LogIn;
             PlayerO = listPlayers[1].LogIn;
+            field = new string[3, 3]
+            {
+                { "--", "--", "--" },
+                { "--", "--", "--" },
+                { "--", "--", "--" }
+            };
+            gamelistene.Start();
+            thread = new Thread(WorkGame);
+            thread.Start();
         }
-       
+        private void WorkGame()
+        {
+            while (isGame)
+            {
+                var context = gamelistene.GetContext();
+                string[] parser = context.Request.RawUrl.Split('/', '?');
+            }
+        }
     }
 }

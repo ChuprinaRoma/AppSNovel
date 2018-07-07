@@ -16,13 +16,18 @@ namespace AppSNove
         public abstract List<Users> listPlayers { get; set; }
         public abstract HttpListener GetListener { get; set; }
         public abstract bool isGame { get; set; }
+        public abstract string TypeRoom { get; set; }
+        public abstract string TypeGame { get; set; }
+        public abstract string Key { get; set; }
 
-        public void Init(string nameGame, int id)
+
+        public void Init(string nameGame, int id, string TypeRoom)
         {
             GetListener = new HttpListener();
-            GetListener.Prefixes.Add($"http://127.0.0.1:8082/{id}/");
+            GetListener.Prefixes.Add($"http://127.0.0.1:8081/{id}/");
             this.NameGame = nameGame;
             this.id = id;
+            this.TypeRoom = TypeRoom;
             this.listObserversUser = new List<Users>();
             this.listPlayers = new List<Users>();
             WorkRoom();
@@ -30,9 +35,9 @@ namespace AppSNove
 
         private void WorkRoom()
         {
+            GetListener.Start();
             new Thread(() =>
             {
-
                 RecipientMesage();
 
             }).Start();
@@ -43,23 +48,28 @@ namespace AppSNove
             bool isStart = false;
             var Context = GetListener.GetContext();
             var msgContent = Context.Request.RawUrl;
-            string[] parser = msgContent.Split('/');
-            if (parser[1] == "NewPlayers")
+            string[] parser = msgContent.Split('/', '?');
+            if (parser[2] == "NewPlayers")
             {
+                listObserversUser.Remove(Server.Server.listUser.Find(u => u.LogIn == parser[2]));
                 listPlayers.Add(Server.Server.listUser.Find(u => u.LogIn == parser[2]));
                 isStart = CheckCountlistPlayers();
-                Response(Context, isStart.ToString());
-                
+                Response(Context, $"{isGame.ToString()}/{listPlayers[0].LogIn}").GetAwaiter().GetResult();
             }
-            else if (parser[1] == "RemovePlayers")
+            else if (parser[2] == "RemovePlayersFull")
             {
                 listPlayers.Remove(Server.Server.listUser.Find(u => u.LogIn == parser[2]));
             }
-            else if (parser[1] == "NewObserversUser")
+            else if (parser[2] == "RemovePlayers")
+            {
+                listPlayers.Remove(Server.Server.listUser.Find(u => u.LogIn == parser[2]));
+                listObserversUser.Add(Server.Server.listUser.Find(u => u.LogIn == parser[2]));
+            }
+            else if (parser[2] == "NewObserversUser")
             {
                 listObserversUser.Add(Server.Server.listUser.Find(u => u.LogIn == parser[2]));
             }
-            else if (parser[1] == "RemovePlayers")
+            else if (parser[2] == "RemoveObserversPlayers")
             {
                 listObserversUser.Remove(Server.Server.listUser.Find(u => u.LogIn == parser[2]));
             }
@@ -67,7 +77,7 @@ namespace AppSNove
         }
 
 
-        private void Response(HttpListenerContext context, string responseStr)
+        protected async Task Response(HttpListenerContext context, string responseStr)
         {
             byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseStr);
             context.Response.ContentLength64 = buffer.Length;

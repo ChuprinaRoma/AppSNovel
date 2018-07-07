@@ -14,7 +14,7 @@ namespace AppSNove
     public class RoomManager
     {
         HttpListener listener;
-        List<Room> listRoom = new List<Room>();
+        public static List<Room> listRoom = new List<Room>();
         public RoomManager()
         {
             listener = new HttpListener();
@@ -40,14 +40,34 @@ namespace AppSNove
             Room room = null;
             string[] parserUri = null;
             var context = await listener.GetContextAsync();
-            parserUri = context.Request.RawUrl.ToString().Split('/', '?');
-            if(parserUri[2] == "WindowGame")
+            parserUri = context.Request.RawUrl.ToString().Split('/');
+            room = SwitchGame.GetGame(parserUri[1]);
+            if (parserUri[2] == "AddXeshInRoom")
             {
-                room = SwitchGame.GetGame(parserUri[3]);
-                room.Init(parserUri[3], GetIdRoom());
+                listRoom.Find(r => r.Key == parserUri[3]).listObserversUser.Add(Server.Server.listUser.Find(u => u.LogIn == parserUri[3]));
+            }
+            else if (room.TypeGame == "WindowGame")
+            {
+                
+                room.Init(parserUri[1], GetIdRoom(), parserUri[2]);
+                room.listObserversUser.Add(Server.Server.listUser.Find(u => u.LogIn == parserUri[3]));
+                room.Key = GetKeyRoom();
                 listRoom.Add(room);
-                Response(context, room.id.ToString());
+                Response(context, $"{room.NameGame}/{room.id.ToString()}/{room.Key}/{room.TypeRoom}");
+                if (room.TypeRoom == "public")
+                {
+                    PushAllRoom(room).GetAwaiter().GetResult();
+                }
                 room = null;
+            }
+             
+        }
+        //После создания комнаты, следует отправка комнат всем клиентам
+        private async Task PushAllRoom(Room room)
+        {
+            for(int i = 0; i < Server.Server.listUser.Count; i++)
+            {
+                Server.Server.listUser[i].SendMesage($"NewRoom/{room.NameGame}/{room.id}").GetAwaiter().GetResult();
             }
         }
 
@@ -70,6 +90,41 @@ namespace AppSNove
             }
             while (listRoom.Contains(listRoom.Find(r => r.id == id)));
             return id;
+        }
+
+        private string GetKeyRoom()
+        {
+            Random rn = new Random();
+            string key = "";
+            for (int i = 0; i < 10; i++)
+            {
+                
+                int temp = rn.Next(0, 15);
+                if(temp > 9)
+                {
+                    key += Gethexadecimal(temp);
+                }
+                else if(temp < 10)
+                {
+                    key += temp.ToString();
+                }
+            }
+            return key;
+        }
+        
+        private string Gethexadecimal(int numb)
+        {
+            string tempStr = "";
+            switch(numb)
+            {
+                case 10: tempStr = "a"; break;
+                case 11: tempStr = "b"; break;
+                case 12: tempStr = "c"; break;
+                case 13: tempStr = "d"; break;
+                case 14: tempStr = "e"; break;
+                case 15: tempStr = "f"; break;
+            }
+            return tempStr;
         }
     }
 }

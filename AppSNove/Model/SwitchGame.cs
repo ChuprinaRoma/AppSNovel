@@ -14,7 +14,12 @@ namespace AppSNove.Model
             Room room = null;
             switch(nameGame)
             {
-                case "Tic_tac_toe": room = new Tic_tac_toe(); break;
+                case "Tic_tac_toe":
+                    {
+                        room = new Tic_tac_toe();
+                        room.TypeGame = "WindowGame";
+                        break;
+                    }
             }
             return room;
         }

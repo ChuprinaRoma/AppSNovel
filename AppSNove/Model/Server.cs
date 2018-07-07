@@ -22,22 +22,24 @@ namespace AppSNove.Server
             ws.StartAsync();
             GetNewUser();
         }
+
         private void GetNewUser()
-        {        
-           new Thread(() =>
-           {
-               while(true)
-               {
-                   WorksServer().GetAwaiter().GetResult();
-               }
-           }).Start();
+        {
+            new RoomManager();
+            new Thread(() =>
+            {
+                while(true)
+                {
+                    WorksServer().GetAwaiter().GetResult();
+                }
+            }).Start();
         }
                                              
         private async Task WorksServer()
         {
             string[] parserUri = null;
             List<string> listLogIn = new List<string>();
-            listLogIn = GetAllUserParser(Directory.GetFiles("./User"));
+            listLogIn = GetAllUserParser(Directory.GetDirectories("./User"));
             wsClient = await ws.AcceptWebSocketAsync(CancellationToken.None);
             parserUri = wsClient.HttpRequest.RequestUri.ToString().Split('/', '?');
             if (parserUri[2] == "Registartion")
@@ -60,7 +62,7 @@ namespace AppSNove.Server
             {
                 if(listLogIn.Contains(parserUri[3]))
                 {
-                    string[] arrUser = File.ReadAllLines($"./User/{parserUri[3]}.txt");
+                    string[] arrUser = File.ReadAllLines($"./User/{parserUri[3]}/{parserUri[3]}.txt");
                     if(arrUser[0] == parserUri[3] && arrUser[1] == parserUri[4])
                     {
                         listUser.Add(new Users(parserUri[3], parserUri[4], wsClient));
@@ -88,14 +90,31 @@ namespace AppSNove.Server
 
         private void SendMesageAllClient(string logIn)
         {
+            List<string> allGame = new List<string>();
+            allGame = GetAllUserParser(Directory.GetDirectories($"./User/{logIn}/Game"));
+
+
             for (int user = 0; user < listUser.Count; user++)
             {
                 listUser[user].isStateUser = "не играет";
                
                 if (listUser[user].LogIn != logIn)
-                {
+                { 
                     SendMesage($"UpdateUser/{listUser[user].LogIn}/{listUser[user].isStateUser}").GetAwaiter().GetResult();
                     listUser[user].SendMesage($"UpdateUser/{logIn}/не играет").GetAwaiter().GetResult();
+                }
+            }
+            
+            for(int game = 0; game < allGame.Count; game++)
+            {
+                SendMesage($"UpdateGame/{allGame[game]}/Настольная").GetAwaiter().GetResult();
+            }
+
+            for (int room = 0; room < RoomManager.listRoom.Count; room++)
+            {
+                if (RoomManager.listRoom[room].TypeRoom == "public")
+                {
+                    SendMesage($"NewRoom/{RoomManager.listRoom[room].id}/{RoomManager.listRoom[room].NameGame}").GetAwaiter().GetResult();
                 }
             }
         }
@@ -124,7 +143,7 @@ namespace AppSNove.Server
             listUser1.AddRange(fullArrUser);
             for(int i = 0; i < listUser1.Count; i++)
             {
-                listUser1[i] = listUser1[i].Remove(0, listUser1[i].LastIndexOf("\\") + 1).Replace(".txt", "");
+                listUser1[i] = listUser1[i].Remove(0, listUser1[i].LastIndexOf("\\") + 1);
             }
             return listUser1;
         }
